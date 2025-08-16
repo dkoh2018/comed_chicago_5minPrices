@@ -142,11 +142,6 @@ def create_weekly_chart(df, week_start, week_end, week_number, show_average=True
     if len(week_data) == 0:
         return None, None
     
-    # Filter to only show 12 PM to 12 AM (noon to midnight)
-    # Create a mask for hours 12-23 (12 PM to 11 PM) and hour 0 (12 AM)
-    hour_mask = (week_data['Time'].dt.hour >= 12) | (week_data['Time'].dt.hour == 0)
-    week_data = week_data[hour_mask]
-    
     if len(week_data) == 0:
         return None, None
     
@@ -367,9 +362,6 @@ def main():
     weekly_stats = []
     for i, (week_start, week_end) in enumerate(week_boundaries):
         week_data = df[(df['Time'] >= week_start) & (df['Time'] <= week_end)]
-        # Filter to 12 PM - 12 AM
-        hour_mask = (week_data['Time'].dt.hour >= 12) | (week_data['Time'].dt.hour == 0)
-        week_data = week_data[hour_mask]
         
         if len(week_data) > 0:
             week_start_str = week_start.strftime("%m/%d")
