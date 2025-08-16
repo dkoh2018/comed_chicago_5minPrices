@@ -134,18 +134,8 @@ def process_data_for_plotting(data):
     
     return times, prices, len(items), None
 
-def create_weekly_chart(df, week_start, week_end, week_number, show_average=True, show_median=False, rolling_avg_hours=None):
-    """Create a chart for a specific week
-
-    Args:
-        df: DataFrame with columns `Time` (datetime) and `Price` (float)
-        week_start: datetime start of week (inclusive)
-        week_end: datetime end of week (inclusive)
-        week_number: ordinal for display
-        show_average: whether to show a horizontal weekly average line
-        show_median: whether to show a horizontal weekly median line
-        rolling_avg_hours: when provided (int), overlays a rolling average line with this hour window
-    """
+def create_weekly_chart(df, week_start, week_end, week_number, show_average=True, show_median=False):
+    """Create a chart for a specific week"""
     # Filter data for this week
     week_data = df[(df['Time'] >= week_start) & (df['Time'] <= week_end)]
     
@@ -174,8 +164,8 @@ def create_weekly_chart(df, week_start, week_end, week_number, show_average=True
         hovertemplate='<b>Time:</b> %{x}<br><b>Price:</b> %{y:.1f} cents<extra></extra>'
     ))
     
-    # Add average line if requested (and rolling is not used)
-    if show_average and not rolling_avg_hours:
+    # Add average line if requested
+    if show_average:
         fig.add_hline(
             y=avg_price,
             line_dash="dash",
@@ -184,8 +174,8 @@ def create_weekly_chart(df, week_start, week_end, week_number, show_average=True
             annotation_position="top right"
         )
     
-    # Add median line if requested (and rolling is not used)
-    if show_median and not rolling_avg_hours:
+    # Add median line if requested
+    if show_median:
         fig.add_hline(
             y=median_price,
             line_dash="dot",
@@ -193,42 +183,15 @@ def create_weekly_chart(df, week_start, week_end, week_number, show_average=True
             annotation_text=f"Med: {median_price:.1f}¢",
             annotation_position="bottom right"
         )
-
-    # Add rolling average line if requested
-    if rolling_avg_hours:
-        week_data_sorted = week_data.sort_values('Time')
-        rolling_series = (
-            week_data_sorted
-            .set_index('Time')['Price']
-            .rolling(f'{int(rolling_avg_hours)}H')
-            .mean()
-        )
-        fig.add_trace(go.Scatter(
-            x=rolling_series.index,
-            y=rolling_series.values,
-            name=f'{int(rolling_avg_hours)}h rolling avg',
-            line=dict(color='red', width=2),
-            hovertemplate='<b>Time:</b> %{x}<br><b>Rolling Avg:</b> %{y:.1f} cents<extra></extra>'
-        ))
     
     # Format week range for title
     week_start_str = week_start.strftime("%m/%d")
     week_end_str = week_end.strftime("%m/%d")
     
-    # Determine subtitle based on selected line
-    if rolling_avg_hours:
-        subtitle_text = f'Rolling {int(rolling_avg_hours)}h avg'
-    elif show_average:
-        subtitle_text = f'Avg: {avg_price:.1f}¢'
-    elif show_median:
-        subtitle_text = f'Med: {median_price:.1f}¢'
-    else:
-        subtitle_text = ''
-
     # Update layout
     fig.update_layout(
         title={
-            'text': f"Week {week_number}: {week_start_str} - {week_end_str}" + (f" | {subtitle_text}" if subtitle_text else ''),
+            'text': f'Week {week_number}: {week_start_str} - {week_end_str} | Avg: {avg_price:.1f}¢',
             'x': 0.5,
             'xanchor': 'center',
             'font': {'size': 16, 'color': 'white'}
@@ -328,10 +291,7 @@ def main():
     with col1:
         st.markdown("**🔄 Auto-refresh:** Every 5 minutes")
     with col2:
-        line_option = st.radio("**📊 Chart Lines:**", ["None", "Average", "Median", "Rolling Avg"], horizontal=True, index=1)
-        rolling_avg_hours = None
-        if line_option == "Rolling Avg":
-            rolling_avg_hours = st.slider("Rolling window (hours)", min_value=1, max_value=48, value=6, step=1)
+        line_option = st.radio("**📊 Chart Lines:**", ["None", "Average", "Median"], horizontal=True, index=1)
     with col3:
         if st.button("🔄 Refresh Now", use_container_width=True):
             st.cache_data.clear()
@@ -451,8 +411,8 @@ def main():
                     hovertemplate='<b>Time:</b> %{x}<br><b>Price:</b> %{y:.1f} cents<extra></extra>'
                 ))
                 
-                # Add average line (only if not using rolling)
-                if show_average and not (line_option == "Rolling Avg"):
+                # Add average line
+                if show_average:
                     fig.add_hline(
                         y=avg_price,
                         line_dash="dash",
@@ -461,8 +421,8 @@ def main():
                         annotation_position="top right"
                     )
                 
-                # Add median line (only if not using rolling)
-                if show_median and not (line_option == "Rolling Avg"):
+                # Add median line
+                if show_median:
                     fig.add_hline(
                         y=median_price,
                         line_dash="dot",
@@ -470,38 +430,11 @@ def main():
                         annotation_text=f"Med: {median_price:.1f}¢",
                         annotation_position="bottom right"
                     )
-
-                # Add rolling average line for Recent Activity if selected
-                if line_option == "Rolling Avg" and rolling_avg_hours:
-                    chart_data_sorted = chart_data.sort_values('Time')
-                    rolling_series_recent = (
-                        chart_data_sorted
-                        .set_index('Time')['Price']
-                        .rolling(f'{int(rolling_avg_hours)}H')
-                        .mean()
-                    )
-                    fig.add_trace(go.Scatter(
-                        x=rolling_series_recent.index,
-                        y=rolling_series_recent.values,
-                        name=f'{int(rolling_avg_hours)}h rolling avg',
-                        line=dict(color='red', width=2),
-                        hovertemplate='<b>Time:</b> %{x}<br><b>Rolling Avg:</b> %{y:.1f} cents<extra></extra>'
-                    ))
                 
-                # Determine subtitle
-                if line_option == "Rolling Avg" and rolling_avg_hours:
-                    subtitle = f'Rolling {int(rolling_avg_hours)}h avg'
-                elif show_average:
-                    subtitle = f'Avg: {avg_price:.1f}¢'
-                elif show_median:
-                    subtitle = f'Med: {median_price:.1f}¢'
-                else:
-                    subtitle = ''
-
                 # Update layout
                 fig.update_layout(
                     title={
-                        'text': 'Last 12 Hours' + (f' | {subtitle}' if subtitle else ''),
+                        'text': f'Last 12 Hours | Avg: {avg_price:.1f}¢',
                         'x': 0.5,
                         'xanchor': 'center',
                         'font': {'size': 14, 'color': 'white'}
@@ -554,15 +487,7 @@ def main():
     charts_created = 0
     
     for i, (week_start, week_end) in enumerate(week_boundaries):
-        fig, stats = create_weekly_chart(
-            df,
-            week_start,
-            week_end,
-            i+1,
-            show_average,
-            show_median,
-            rolling_avg_hours=rolling_avg_hours if line_option == "Rolling Avg" else None
-        )
+        fig, stats = create_weekly_chart(df, week_start, week_end, i+1, show_average, show_median)
         
         if fig is not None:
             st.plotly_chart(fig, use_container_width=True)
